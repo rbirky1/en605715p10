@@ -22,7 +22,8 @@
 #include <websocketpp/config/asio_no_tls.hpp>
 #include <websocketpp/server.hpp>
 
-#define BYTES 40
+#define BYTES 6
+#define DEBUG 0
 
 typedef websocketpp::server<websocketpp::config::asio> server;
 
@@ -48,26 +49,35 @@ public:
 	}
 
 	void read_device() {
-		while (1) {
-			// Every second
-			sleep(1);
-
-			unsigned char buffer[BYTES] = {0};
-			printf("%d\n", read(m_device, buffer, BYTES));
-/*
-			if (read(m_device, buffer, BYTES) != BYTES) {
+		signed char data[6];
+		while (true) {
+			if (read(m_device, data, BYTES) != BYTES) {
 				printf("Failed to read from the i2c bus.\n");
 			} else {
-				printf("Data read: %s\n", buffer);
-				/*
-				// Send data to all clients
-				std::string message(buffer);
+				if (DEBUG) {
+					std::cout << (int)data[0] << std::endl;
+					std::cout << (int)data[1] << std::endl;
+					std::cout << (int)data[2] << std::endl;
+					std::cout << (int)data[3] << std::endl;
+					std::cout << (int)data[4] << std::endl;
+					std::cout << (int)data[5] << std::endl;
+				}
+				int roll_i = ((data[1] << 8) | (data[0]));
+				int pitch_i = ((data[3] << 8) | (data[2]));
+				int yaw_i = ((data[5] << 8) | (data[4]));
+
+				if (DEBUG)
+					std::cout << "roll: " << roll_i << ", pitch:" << pitch_i << ", yaw: " << yaw_i << std::endl;
+
+				// Send to all clients				
 				std::lock_guard<std::mutex> lock(m_mutex);
 				for (auto it : m_connections) {
-					m_server.send(it,message,websocketpp::frame::opcode::text);
+					m_server.send(it,(const char*)data,websocketpp::frame::opcode::text);
 				}
 			}
-*/
+
+			// Every 3 seconds
+			sleep(3);
 		}
 	}
 
